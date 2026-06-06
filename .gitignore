@@ -47,6 +47,9 @@ langfuse_data/
 # Notebooks checkpoints
 .ipynb_checkpoints/
 
+# Session context (local only — use prep repo or paste manually into new sessions)
+docs/CONTEXT.md
+
 # Coverage / test artifacts
 .coverage
 htmlcov/
