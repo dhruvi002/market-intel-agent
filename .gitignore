@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+dist/
+build/
+
+# Node
+node_modules/
+.next/
+dist/
+.pnpm-store/
+
+# Data (never commit raw filings or model weights)
+data/
+*.parquet
+*.pkl
+*.pt
+*.bin
+*.gguf
+
+# Secrets
+*.pem
+*.key
+secrets/
+credentials/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Docker volumes
+postgres_data/
+qdrant_data/
+redis_data/
+minio_data/
+langfuse_data/
+
+# Notebooks checkpoints
+.ipynb_checkpoints/
+
+# Coverage / test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
