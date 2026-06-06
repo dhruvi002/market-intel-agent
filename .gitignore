@@ -49,6 +49,7 @@ langfuse_data/
 
 # Session context (local only — use prep repo or paste manually into new sessions)
 docs/CONTEXT.md
+docs/PLAN.md
 
 # Coverage / test artifacts
 .coverage
