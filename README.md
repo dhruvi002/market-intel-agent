@@ -1,6 +1,6 @@
 # Autonomous Enterprise Market Intelligence Agent
 
-> **Status:** In active development. Phase 0 (bootstrap) in progress.
+> **Status:** In active development. Phase 3 (single-agent RAG baseline) complete. Phase 4 (LangGraph multi-agent skeleton) next.
 
 A multi-agent system that autonomously gathers, synthesizes, and verifies competitive intelligence from SEC filings, financial data, and open-web sources — streaming agent reasoning live to a React dashboard.
 
@@ -46,9 +46,9 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full build plan.
 | Phase | Focus | Status |
 |---|---|---|
 | 0 | Bootstrap & DevOps foundation | 🔄 In progress |
-| 1 | Ingestion pipelines (EDGAR + XBRL + PDF) | ⬜ Pending |
-| 2 | Retrieval stack (Qdrant + BM25 + reranker) | ⬜ Pending |
-| 3 | Single-agent RAG baseline | ⬜ Pending |
+| 1 | Ingestion pipelines (EDGAR + XBRL + PDF) | ✅ Complete |
+| 2 | Retrieval stack (Qdrant + BM25 + reranker) | ✅ Complete |
+| 3 | Single-agent RAG baseline | ✅ Complete |
 | 4 | LangGraph multi-agent skeleton | ⬜ Pending |
 | 5 | Critic agent + self-correction loops | ⬜ Pending |
 | 6 | FastAPI + WebSocket streaming | ⬜ Pending |

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls /Users/dhruvishah/Documents/Projects/PrepMarketIntelAgent/ 2>&1 | head -20)"
+    ]
+  }
+}

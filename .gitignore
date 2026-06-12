@@ -1,59 +1,63 @@
-# Python
+# ── Environment ──────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
-*.egg-info/
+*.pyo
+*.pyd
+.Python
 .venv/
 venv/
-.env
-.env.*
+*.egg-info/
+.eggs/
 dist/
 build/
+*.so
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+coverage.xml
+.coverage
+htmlcov/
 
-# Node
+# ── uv ───────────────────────────────────────────────────────────────────────
+uv.lock          # committed — remove this line if you want to commit the lockfile
+
+# ── Node / pnpm ──────────────────────────────────────────────────────────────
 node_modules/
-.next/
 dist/
 .pnpm-store/
 
-# Data (never commit raw filings or model weights)
+# ── Data (never commit raw filings or model weights) ─────────────────────────
 data/
 *.parquet
+*.arrow
 *.pkl
-*.pt
+*.safetensors
 *.bin
-*.gguf
+*.pt
+*.ckpt
 
-# Secrets
-*.pem
-*.key
-secrets/
-credentials/
+# ── Notebooks ────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+notebooks/*.ipynb   # commit intentionally, not accidentally
 
-# OS
+# ── OS / editors ─────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
-
-# IDE
-.vscode/
+*.swp
+*.swo
 .idea/
+.vscode/
+*.iml
 
-# Docker volumes
-postgres_data/
-qdrant_data/
-redis_data/
-minio_data/
-langfuse_data/
+# ── Docker ───────────────────────────────────────────────────────────────────
+infra/langfuse/    # generated configs
 
-# Notebooks checkpoints
-.ipynb_checkpoints/
-
-# Session context (local only — use prep repo or paste manually into new sessions)
-docs/CONTEXT.md
-docs/PLAN.md
-
-# Coverage / test artifacts
-.coverage
-htmlcov/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# ── Secrets / keys ───────────────────────────────────────────────────────────
+*.pem
+*.key
+*.p12

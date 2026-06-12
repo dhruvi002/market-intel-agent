@@ -1,0 +1,14 @@
+{
+  "name": "market-intel-agent",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter mia-web dev",
+    "build": "pnpm --filter mia-web build",
+    "lint": "pnpm --filter mia-web lint",
+    "typecheck": "pnpm --filter mia-web typecheck"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
