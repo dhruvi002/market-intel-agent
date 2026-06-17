@@ -140,26 +140,6 @@ See [`infra/huggingface/Dockerfile`](infra/huggingface/Dockerfile) and
 
 ---
 
-## Project Phases
-
-| Phase | Focus | Status |
-|---|---|---|
-| 0 | Bootstrap & DevOps foundation | ✅ Complete |
-| 1 | Ingestion pipelines (EDGAR + XBRL + PDF) | ✅ Complete |
-| 2 | Retrieval stack (Qdrant + BM25 + reranker) | ✅ Complete |
-| 3 | Single-agent RAG baseline | ✅ Complete |
-| 4 | LangGraph multi-agent skeleton | ✅ Complete |
-| 5 | Critic agent + self-correction loops | ✅ Complete |
-| 6 | FastAPI + WebSocket streaming + ARQ | ✅ Complete |
-| 7 | React dashboard (chat + DAG viz + citations) | ✅ Complete |
-| 8 | Observability (Langfuse) + eval harness (RAGAS) + ablation | ✅ Complete |
-| 9 | Stress test, hardening, cloud deploy, WRITEUP | ✅ Complete |
-
-See [`docs/PLAN.md`](docs/PLAN.md) for the full build plan and
-[`docs/WRITEUP.md`](docs/WRITEUP.md) for the project reflection and
-failure-mode taxonomy.
-
----
 
 ## Key Make Targets
 
@@ -189,4 +169,3 @@ make help                       # all targets with descriptions
 | [`docs/PLAN.md`](docs/PLAN.md) | Master architecture plan |
 | [`docs/EVAL.md`](docs/EVAL.md) | Retrieval ablation methodology + live results |
 | [`docs/WRITEUP.md`](docs/WRITEUP.md) | Project reflection + failure-mode taxonomy |
-| `docs/PHASE_N_SUMMARY.md` | Per-phase decision log + interview prep |
