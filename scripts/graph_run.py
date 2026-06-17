@@ -62,10 +62,19 @@ async def main() -> None:
     print("Compiling graph…", flush=True)
     graph = build_graph(retriever=retriever, llm=llm)
 
+    # Phase 8: attach Langfuse callbacks (no-op when keys are unconfigured).
+    # LangGraph propagates these to every node's LLM call, so one trace per run
+    # captures the full span tree, token counts and synthetic cost.
+    from mia_eval.tracing import langchain_callbacks, observe_run
+
     print(f"\nQuery: {args.query}\n")
     print("Running multi-agent pipeline…", flush=True)
 
-    result = await graph.ainvoke({"query": args.query})
+    async with observe_run("graph_run", metadata={"query": args.query}):
+        result = await graph.ainvoke(
+            {"query": args.query},
+            config={"callbacks": langchain_callbacks()},
+        )
 
     _print_result(result)
 

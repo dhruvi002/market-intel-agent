@@ -10,17 +10,19 @@ WORKDIR /app
 
 # ── Copy workspace manifests first (layer-cache friendly) ────────────────────
 COPY pyproject.toml ./
-COPY packages/shared/pyproject.toml packages/shared/
-COPY packages/agents/pyproject.toml  packages/agents/
-COPY apps/api/pyproject.toml         apps/api/
+COPY packages/shared/pyproject.toml     packages/shared/
+COPY packages/agents/pyproject.toml     packages/agents/
+COPY packages/retrieval/pyproject.toml  packages/retrieval/
+COPY apps/api/pyproject.toml            apps/api/
 
 # ── Install only what api + its deps need ────────────────────────────────────
 RUN uv sync --no-dev --package mia-api
 
 # ── Copy source ──────────────────────────────────────────────────────────────
-COPY packages/shared/src packages/shared/src
-COPY packages/agents/src  packages/agents/src
-COPY apps/api/src         apps/api/src
+COPY packages/shared/src     packages/shared/src
+COPY packages/agents/src     packages/agents/src
+COPY packages/retrieval/src  packages/retrieval/src
+COPY apps/api/src            apps/api/src
 
 EXPOSE 8000
 

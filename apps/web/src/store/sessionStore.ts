@@ -60,13 +60,18 @@ export const useSessionStore = create<SessionState>((set) => ({
   handleEvent: (event) =>
     set((state) => {
       const events = [...state.events, event];
-      let { draft, evidence, critique, agentStatuses, status, humanApprovalRequired } = state;
+      let { draft, evidence, critique, agentStatuses, status, humanApprovalRequired, error } = state;
 
       switch (event.event_type) {
         case "agent_start":
           if (event.agent) {
             agentStatuses = { ...agentStatuses, [event.agent]: "active" };
             status = "running";
+            // Reset draft each time the summarizer starts so that revise-loop
+            // re-runs replace the previous draft rather than appending to it.
+            if (event.agent === "summarizer") {
+              draft = "";
+            }
           }
           break;
         case "agent_end":
@@ -94,10 +99,11 @@ export const useSessionStore = create<SessionState>((set) => ({
           break;
         case "error":
           status = "error";
+          error = (event.payload.message as string | undefined) ?? "An unknown error occurred.";
           break;
       }
 
-      return { events, draft, evidence, critique, agentStatuses, status, humanApprovalRequired };
+      return { events, draft, evidence, critique, agentStatuses, status, humanApprovalRequired, error };
     }),
 
   reset: () =>

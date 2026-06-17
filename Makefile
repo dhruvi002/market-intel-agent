@@ -1,5 +1,7 @@
 .PHONY: up down logs ps build pull migrate lint test typecheck install clean help \
-        query query-bm25 query-dense query-groq
+        query query-bm25 query-dense query-groq \
+        eval eval-retrieval eval-ablation eval-ablation-critic eval-ragas \
+        stress-test cloud-up cloud-down
 
 COMPOSE = docker compose -f infra/docker-compose.yml --env-file .env
 UV      = uv run
@@ -88,6 +90,34 @@ graph-run: ## Run multi-agent graph: make graph-run q="NVDA data center revenue?
 
 graph-run-groq: ## Graph with Groq Llama: make graph-run-groq q="AMD margins?"
 	$(UV) python scripts/graph_run.py "$(q)" --provider groq
+
+# ── Phase 8: Evaluation ───────────────────────────────────────────────────────
+eval-retrieval: ## Retrieval eval over golden set: make eval-retrieval mode=hybrid
+	$(UV) python scripts/eval_retrieval.py --mode $(or $(mode),hybrid)
+
+eval-ablation: ## Run 6-cell retrieval ablation + write EVAL.md + plots
+	$(UV) python scripts/eval_ablation.py --metric $(or $(metric),ndcg)
+
+eval-ablation-critic: ## Run full 12-cell ablation (includes critic dimension)
+	$(UV) python scripts/eval_ablation.py --with-critic --metric $(or $(metric),ndcg)
+
+eval-ragas: ## RAGAS generation eval (uses free LLM judge): make eval-ragas
+	$(UV) python scripts/eval_ragas.py --mode $(or $(mode),hybrid) $(if $(limit),--limit $(limit),)
+
+eval: eval-ablation eval-ragas ## Full eval suite: ablation + RAGAS
+
+# ── Phase 9: Stress test & cloud ─────────────────────────────────────────────
+stress-test: ## Concurrent session stress test: make stress-test sessions=10
+	$(UV) python scripts/stress_test.py \
+		--sessions $(or $(sessions),10) \
+		--base-url $(or $(base_url),http://localhost:8000) \
+		$(if $(verbose),--verbose,)
+
+cloud-up: ## Start cloud-ready services (external Qdrant/Postgres/Redis)
+	docker compose -f infra/docker-compose.cloud.yml --env-file .env.cloud up -d
+
+cloud-down: ## Stop cloud services
+	docker compose -f infra/docker-compose.cloud.yml --env-file .env.cloud down
 
 # ── Python dev ───────────────────────────────────────────────────────────────
 install: ## Install all Python + Node deps

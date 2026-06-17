@@ -11,10 +11,10 @@ import { useSessionStore } from "@/store/sessionStore";
 import type { AgentName, AgentNodeData, AgentNodeStatus } from "@/types/agent";
 
 const STATUS_COLORS: Record<AgentNodeStatus, string> = {
-  idle: "border-[hsl(var(--agent-idle))] text-[hsl(var(--agent-idle))]",
+  idle:   "border-[hsl(var(--agent-idle))] text-[hsl(var(--agent-idle))]",
   active: "border-[hsl(var(--agent-active))] text-[hsl(var(--agent-active))] shadow-[0_0_12px_hsl(var(--agent-active)/0.5)]",
-  done: "border-[hsl(var(--agent-done))] text-[hsl(var(--agent-done))]",
-  error: "border-[hsl(var(--agent-error))] text-[hsl(var(--agent-error))]",
+  done:   "border-[hsl(var(--agent-done))] text-[hsl(var(--agent-done))]",
+  error:  "border-[hsl(var(--agent-error))] text-[hsl(var(--agent-error))]",
 };
 
 function AgentNode({ data }: { data: AgentNodeData }) {
@@ -35,13 +35,13 @@ function AgentNode({ data }: { data: AgentNodeData }) {
 const nodeTypes = { agent: AgentNode };
 
 const AGENT_LABELS: Record<AgentName, string> = {
-  supervisor: "Supervisor",
-  web_search: "Web Search",
-  edgar_parser: "EDGAR Parser",
-  retrieval: "RAG Retrieval",
+  supervisor:    "Supervisor",
+  web_search:    "Web Search",
+  edgar_parser:  "EDGAR Parser",
+  retrieval:     "RAG Retrieval",
   sql_generator: "SQL Generator",
-  summarizer: "Summarizer",
-  critic: "Critic",
+  summarizer:    "Summarizer",
+  critic:        "Critic",
 };
 
 // Fixed DAG layout positions
@@ -55,15 +55,17 @@ const NODE_POSITIONS: Record<AgentName, { x: number; y: number }> = {
   critic:        { x: 60,  y: 360 },
 };
 
-const EDGES: Edge[] = [
-  { id: "s-ws",  source: "supervisor", target: "web_search",    animated: false, style: { stroke: "hsl(var(--border))" } },
-  { id: "s-ep",  source: "supervisor", target: "edgar_parser",  animated: false, style: { stroke: "hsl(var(--border))" } },
-  { id: "ws-r",  source: "web_search",    target: "retrieval",  animated: false, style: { stroke: "hsl(var(--border))" } },
-  { id: "ep-sq", source: "edgar_parser",  target: "sql_generator", animated: false, style: { stroke: "hsl(var(--border))" } },
-  { id: "r-sum", source: "retrieval",     target: "summarizer", animated: false, style: { stroke: "hsl(var(--border))" } },
-  { id: "sq-sum",source: "sql_generator", target: "summarizer", animated: false, style: { stroke: "hsl(var(--border))" } },
-  { id: "sum-c", source: "summarizer",    target: "critic",     animated: false, style: { stroke: "hsl(var(--border))" } },
-  { id: "c-s",   source: "critic",        target: "supervisor", animated: false, style: { stroke: "hsl(var(--border))", strokeDasharray: "4 2" } },
+// Static edge definitions — animated flag and color are derived at render time
+// from agentStatuses so the DAG is live.
+const STATIC_EDGES: { id: string; source: AgentName; target: AgentName; dashed?: boolean }[] = [
+  { id: "s-ws",  source: "supervisor",    target: "web_search"    },
+  { id: "s-ep",  source: "supervisor",    target: "edgar_parser"  },
+  { id: "ws-r",  source: "web_search",    target: "retrieval"     },
+  { id: "ep-sq", source: "edgar_parser",  target: "sql_generator" },
+  { id: "r-sum", source: "retrieval",     target: "summarizer"    },
+  { id: "sq-sum",source: "sql_generator", target: "summarizer"    },
+  { id: "sum-c", source: "summarizer",    target: "critic"        },
+  { id: "c-s",   source: "critic",        target: "supervisor", dashed: true },
 ];
 
 export function AgentDAG() {
@@ -81,11 +83,30 @@ export function AgentDAG() {
     draggable: false,
   }));
 
+  // Derive live edge styles from current agent statuses:
+  // an edge lights up (animated + orange) when its source or target is active.
+  const edges: Edge[] = STATIC_EDGES.map(({ id, source, target, dashed }) => {
+    const lit =
+      agentStatuses[source] === "active" || agentStatuses[target] === "active";
+    return {
+      id,
+      source,
+      target,
+      animated: lit,
+      style: {
+        stroke: lit ? "hsl(var(--agent-active))" : "hsl(var(--border))",
+        strokeWidth: lit ? 2 : 1,
+        strokeDasharray: dashed ? "4 2" : undefined,
+        transition: "stroke 0.3s, stroke-width 0.3s",
+      },
+    };
+  });
+
   return (
     <div className="h-full w-full">
       <ReactFlow
         nodes={nodes}
-        edges={EDGES}
+        edges={edges}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}

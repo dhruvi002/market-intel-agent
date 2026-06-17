@@ -5,7 +5,7 @@ WORKDIR /app
 
 # ── Dev stage (used by docker-compose for hot-reload) ────────────────────────
 FROM base AS dev
-COPY pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile
 COPY apps/web apps/web
@@ -15,7 +15,7 @@ CMD ["pnpm", "dev", "--host", "0.0.0.0"]
 
 # ── Build stage ───────────────────────────────────────────────────────────────
 FROM base AS build
-COPY pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile
 COPY apps/web apps/web

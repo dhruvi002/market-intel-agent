@@ -24,7 +24,7 @@ coverage.xml
 htmlcov/
 
 # ── uv ───────────────────────────────────────────────────────────────────────
-uv.lock          # committed — remove this line if you want to commit the lockfile
+# uv.lock is committed for reproducibility
 
 # ── Node / pnpm ──────────────────────────────────────────────────────────────
 node_modules/
@@ -32,7 +32,7 @@ dist/
 .pnpm-store/
 
 # ── Data (never commit raw filings or model weights) ─────────────────────────
-data/
+/data/
 *.parquet
 *.arrow
 *.pkl
@@ -56,6 +56,14 @@ Thumbs.db
 
 # ── Docker ───────────────────────────────────────────────────────────────────
 infra/langfuse/    # generated configs
+
+# ── Docs (only PLAN.md and WRITEUP.md are public) ────────────────────────────
+docs/*
+!docs/PLAN.md
+!docs/WRITEUP.md
+
+# ── Local tooling ─────────────────────────────────────────────────────────────
+.claude/
 
 # ── Secrets / keys ───────────────────────────────────────────────────────────
 *.pem

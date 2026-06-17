@@ -58,10 +58,16 @@ class Settings(BaseSettings):
     embedding_model: str = Field("BAAI/bge-large-en-v1.5")
     reranker_model: str = Field("BAAI/bge-reranker-v2-m3")
     nli_model: str = Field("cross-encoder/nli-deberta-v3-base")
+    nli_entailment_threshold: float = Field(
+        0.5, description="Min entailment probability for Citation.is_verified=True"
+    )
     qdrant_collection: str = Field("filings")
     bm25_top_k: int = Field(50)
     dense_top_k: int = Field(50)
     rerank_top_k: int = Field(10)
+
+    # ── SQL Generator ────────────────────────────────────────────────────────
+    sql_max_rows: int = Field(50, description="Max rows returned by sql_generator_node")
 
     # ── EDGAR ────────────────────────────────────────────────────────────────
     edgar_user_agent: str = Field(
@@ -69,6 +75,15 @@ class Settings(BaseSettings):
         description="Required by EDGAR fair-access policy",
     )
     edgar_request_delay_s: float = Field(0.11, description="≥0.1 s between EDGAR requests")
+
+    # ── Evaluation (Phase 8) ─────────────────────────────────────────────────
+    eval_golden_path: str | None = Field(
+        None, description="Override path to golden_set.jsonl (defaults to packaged set)"
+    )
+    eval_top_k: int = Field(10, description="Retrieval cut-off for Recall/Precision/nDCG@k")
+    eval_bootstrap_samples: int = Field(
+        10_000, description="Resamples for the 95% CI bootstrap in mia_eval.stats"
+    )
 
 
 @lru_cache(maxsize=1)

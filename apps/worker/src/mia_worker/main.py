@@ -5,6 +5,9 @@ Start the worker:
 
 Or via Makefile:
     make worker
+
+Phase 6: added ``run_query`` task (streams the multi-agent LangGraph pipeline
+events to Redis pubsub for WebSocket forwarding to the browser).
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ from arq.connections import RedisSettings
 
 from mia_shared.config import get_settings
 from mia_worker.tasks.ingest import ingest_filing, ingest_ticker
+from mia_worker.tasks.query import run_query
 
 
 def _redis_settings() -> RedisSettings:
@@ -55,7 +59,7 @@ class WorkerSettings:
     ARQ reads this class's attributes at startup to configure the worker.
     """
 
-    functions = [ingest_ticker, ingest_filing]
+    functions = [ingest_ticker, ingest_filing, run_query]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = _redis_settings()
