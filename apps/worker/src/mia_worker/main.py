@@ -17,8 +17,8 @@ import urllib.parse
 
 import structlog
 from arq.connections import RedisSettings
-
 from mia_shared.config import get_settings
+
 from mia_worker.tasks.ingest import ingest_filing, ingest_ticker
 from mia_worker.tasks.query import run_query
 
@@ -36,6 +36,14 @@ def _redis_settings() -> RedisSettings:
 
 
 async def startup(ctx: dict) -> None:
+    # Attach a stdlib StreamHandler so structlog's stdlib-routed INFO logs
+    # actually emit. Without this, Python's last-resort handler drops INFO
+    # records (it only emits WARNING+), making the worker appear "stuck"
+    # when it is in fact running.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     structlog.configure(
         processors=[
             structlog.stdlib.add_log_level,
@@ -43,7 +51,7 @@ async def startup(ctx: dict) -> None:
             structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory(),
     )
     logger = structlog.get_logger(__name__)
     logger.info("Worker starting", queues=["default"])
@@ -70,6 +78,14 @@ class WorkerSettings:
 
 
 if __name__ == "__main__":
+    # Configure logging up front so ARQ's own startup/Redis-connection logs
+    # are visible (ARQ logs via the 'arq.worker' logger at INFO).
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+    print("Launching ARQ worker — connecting to Redis...", flush=True)
+
     from arq import run_worker
 
     run_worker(WorkerSettings)

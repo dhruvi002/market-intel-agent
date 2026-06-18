@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import itertools
 import logging
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from mia_eval.retrieval_metrics import (
     RetrievalMetrics,
@@ -38,8 +39,9 @@ from mia_eval.retrieval_metrics import (
 )
 
 if TYPE_CHECKING:
-    from mia_eval.golden import GoldenQA
     from mia_retrieval.retriever import Retriever
+
+    from mia_eval.golden import GoldenQA
 
 logger = logging.getLogger(__name__)
 
@@ -107,33 +109,38 @@ def _aggregate(metrics: Sequence[RetrievalMetrics]) -> dict[str, float]:
 
 
 async def _retrieval_metrics_for(
-    retriever: "Retriever",
-    golden: "Sequence[GoldenQA]",
+    retriever: Retriever,
+    golden: Sequence[GoldenQA],
     mode: str,
     rerank: bool,
     k: int,
 ) -> list[RetrievalMetrics]:
     """Per-query retrieval metrics for one (mode, rerank) config."""
-    from mia_retrieval.retriever import RetrieveMode  # noqa: PLC0415
+    from mia_retrieval.retriever import RetrieveMode
+    from tqdm import tqdm
 
     rmode = RetrieveMode(mode)
+    label = f"{mode}{'+rerank' if rerank else '':<8}"
     out: list[RetrievalMetrics] = []
-    for qa in golden:
-        evidence = await retriever.retrieve(
-            qa.question,
-            mode=rmode,
-            rerank=rerank,
-            ticker_filter=qa.tickers or None,
-            top_k=k,
-        )
-        ranking = [evidence_doc_id(ev) for ev in evidence]
-        out.append(score_ranking(ranking, qa.relevant_set, k=k))
+    with tqdm(golden, desc=f"  {label}", unit="q", leave=True) as bar:
+        for qa in bar:
+            evidence = await retriever.retrieve(
+                qa.question,
+                mode=rmode,
+                rerank=rerank,
+                ticker_filter=qa.tickers or None,
+                top_k=k,
+            )
+            ranking = [evidence_doc_id(ev) for ev in evidence]
+            m = score_ranking(ranking, qa.relevant_set, k=k)
+            out.append(m)
+            bar.set_postfix(ndcg=f"{m.ndcg:.3f}", recall=f"{m.recall:.3f}")
     return out
 
 
 async def run_ablation(
-    retriever: "Retriever",
-    golden: "Sequence[GoldenQA]",
+    retriever: Retriever,
+    golden: Sequence[GoldenQA],
     *,
     k: int = 10,
     with_critic: bool = True,
@@ -161,10 +168,17 @@ async def run_ablation(
     # across the critic dimension to avoid 2× redundant retrieval passes.
     retrieval_cache: dict[tuple[str, bool], list[RetrievalMetrics]] = {}
 
+    grid = ablation_grid(with_critic=with_critic)
+    total_retrieval = len({(m, r) for m, r, _ in grid})
+    print(f"\nAblation: {len(grid)} cells ({total_retrieval} unique retrieval passes × {len(golden)} questions)\n")
+
     cells: list[AblationCell] = []
-    for mode, rerank, critic in ablation_grid(with_critic=with_critic):
+    retrieval_pass = 0
+    for mode, rerank, critic in grid:
         key = (mode, rerank)
         if key not in retrieval_cache:
+            retrieval_pass += 1
+            print(f"[{retrieval_pass}/{total_retrieval}] Running retrieval: {mode}{'+rerank' if rerank else ''}")
             retrieval_cache[key] = await _retrieval_metrics_for(
                 retriever, golden, mode, rerank, k
             )
@@ -244,6 +258,6 @@ def baseline_vs_best(
 
 def results_dataframe(cells: Sequence[AblationCell]):
     """Convert cells to a pandas DataFrame (lazy import)."""
-    import pandas as pd  # noqa: PLC0415
+    import pandas as pd
 
     return pd.DataFrame([c.as_row() for c in cells])

@@ -51,7 +51,7 @@ class QdrantStore:
 
         Safe to call on every startup — no-op if already exists.
         """
-        from qdrant_client.models import (  # noqa: PLC0415
+        from qdrant_client.models import (
             Distance,
             PayloadSchemaType,
             VectorParams,
@@ -99,7 +99,7 @@ class QdrantStore:
         if not chunks:
             return 0
 
-        from qdrant_client.models import PointStruct  # noqa: PLC0415
+        from qdrant_client.models import PointStruct
 
         points = [
             PointStruct(
@@ -126,7 +126,7 @@ class QdrantStore:
 
     async def delete_by_filing(self, filing_id: str) -> int:
         """Delete all points for *filing_id*.  Used when re-indexing a filing."""
-        from qdrant_client.models import FieldCondition, Filter, MatchValue  # noqa: PLC0415
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         client = await self._get_client()
         result = await client.delete(
@@ -155,7 +155,7 @@ class QdrantStore:
         top_k          : maximum results to return
         ticker_filter  : if provided, restrict to these tickers only
         """
-        from qdrant_client.models import FieldCondition, Filter, MatchAny  # noqa: PLC0415
+        from qdrant_client.models import FieldCondition, Filter, MatchAny
 
         query_filter = None
         if ticker_filter:
@@ -164,13 +164,14 @@ class QdrantStore:
             )
 
         client = await self._get_client()
-        return await client.search(
+        result = await client.query_points(
             collection_name=self._collection,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
             query_filter=query_filter,
             with_payload=True,
         )
+        return result.points
 
     async def count(self) -> int:
         """Return the total number of indexed points."""
@@ -180,7 +181,7 @@ class QdrantStore:
 
     async def filing_is_indexed(self, filing_id: str) -> bool:
         """Return True if at least one chunk for *filing_id* exists in Qdrant."""
-        from qdrant_client.models import FieldCondition, Filter, MatchValue  # noqa: PLC0415
+        from qdrant_client.models import FieldCondition, Filter, MatchValue
 
         client = await self._get_client()
         result = await client.count(
@@ -195,7 +196,7 @@ class QdrantStore:
 
     async def _get_client(self) -> Any:
         if self._client is None:
-            from qdrant_client import AsyncQdrantClient  # noqa: PLC0415
+            from qdrant_client import AsyncQdrantClient
 
             self._client = AsyncQdrantClient(url=self._url)
         return self._client

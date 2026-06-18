@@ -26,14 +26,15 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from mia_shared.config import get_settings
+from mia_shared.schemas import Evidence
+
 from mia_retrieval.bm25_index import BM25Index
 from mia_retrieval.chunker import Chunk
 from mia_retrieval.embedder import Embedder
 from mia_retrieval.hybrid import reciprocal_rank_fusion
 from mia_retrieval.qdrant_store import QdrantStore, chunk_from_scored_point
 from mia_retrieval.reranker import Reranker
-from mia_shared.config import get_settings
-from mia_shared.schemas import Evidence
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,7 @@ def _chunk_to_evidence(chunk: Chunk, score: float) -> Evidence:
         text=chunk.text,
         relevance_score=score,
         metadata={
+            "doc_id": chunk.id,
             "filing_id": chunk.filing_id,
             "accession_number": chunk.accession_number,
             "chunk_index": chunk.chunk_index,
@@ -211,8 +213,8 @@ def build_retriever(
     Loads the BM25 index from *bm25_path* if it exists; starts empty otherwise.
     Heavy models (Embedder, Reranker) are lazy — they load on first use.
     """
-    from mia_retrieval.embedder import get_embedder  # noqa: PLC0415
-    from mia_retrieval.reranker import get_reranker  # noqa: PLC0415
+    from mia_retrieval.embedder import get_embedder
+    from mia_retrieval.reranker import get_reranker
 
     cfg = get_settings()
     url = qdrant_url or cfg.qdrant_url

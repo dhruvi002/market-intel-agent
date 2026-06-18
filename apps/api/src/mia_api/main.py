@@ -46,7 +46,6 @@ from arq import create_pool
 from arq.connections import RedisSettings
 from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-
 from mia_shared.config import Settings, get_settings
 from mia_shared.schemas import EventType, QueryRequest, SessionResponse
 
@@ -83,7 +82,7 @@ async def _on_startup() -> None:
             structlog.dev.ConsoleRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
-        logger_factory=structlog.PrintLoggerFactory(),
+        logger_factory=structlog.stdlib.LoggerFactory(),
     )
     logger.info("API started")
 
@@ -91,7 +90,7 @@ async def _on_startup() -> None:
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _arq_redis_settings(settings: Settings) -> RedisSettings:
-    import urllib.parse  # noqa: PLC0415
+    import urllib.parse
 
     parsed = urllib.parse.urlparse(settings.redis_url)
     return RedisSettings(
@@ -217,7 +216,7 @@ async def ws_stream(
         logger.warning("WebSocket error", exc=str(exc), channel=channel)
         try:
             await websocket.close(code=1011)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     finally:
         await pubsub.unsubscribe(channel)

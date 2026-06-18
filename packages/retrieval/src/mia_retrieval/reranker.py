@@ -88,15 +88,16 @@ class Reranker:
 
     # ── Internal ──────────────────────────────────────────────────────────────
 
-    def _load(self) -> "CrossEncoder":
+    def _load(self) -> CrossEncoder:
         if self._model is None:
-            from sentence_transformers import CrossEncoder  # noqa: PLC0415
+            from sentence_transformers import CrossEncoder
 
             logger.info("Loading reranker model %s …", self._model_name)
-            kwargs: dict[str, object] = {}
-            if self._device is not None:
-                kwargs["device"] = self._device
-            self._model = CrossEncoder(self._model_name, **kwargs)
+            # Default to CPU: embedder already uses MPS on Apple Silicon and
+            # running both models on MPS simultaneously exhausts shared memory.
+            # Cross-encoder on k=50 candidates is ~200ms on CPU — fast enough.
+            device = self._device or "cpu"
+            self._model = CrossEncoder(self._model_name, device=device)
             logger.info("Reranker model loaded")
         return self._model
 
@@ -111,7 +112,7 @@ def get_reranker(
     device: str | None = None,
 ) -> Reranker:
     """Return the process-wide :class:`Reranker` singleton."""
-    global _reranker  # noqa: PLW0603
+    global _reranker
     if _reranker is None:
         _reranker = Reranker(model_name=model_name, device=device)
     return _reranker

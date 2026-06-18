@@ -37,9 +37,9 @@ def _parse_args() -> argparse.Namespace:
 async def main() -> None:
     args = _parse_args()
 
-    from mia_eval.ablation import baseline_vs_best, results_to_markdown, run_ablation
+    from mia_eval.ablation import baseline_vs_best, run_ablation
     from mia_eval.golden import load_golden_set
-    from mia_eval.report import lift_line, write_eval_report
+    from mia_eval.report import lift_line, results_to_markdown, write_eval_report
     from mia_eval.stats import bootstrap_ci
     from mia_retrieval.retriever import build_retriever
 

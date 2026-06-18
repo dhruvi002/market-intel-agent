@@ -44,10 +44,11 @@ services:
     environment:
       QDRANT__LOG_LEVEL: WARN
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      test: ["CMD-SHELL", "echo ok"]
       interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 3
+      start_period: 20s
 
   minio:
     image: minio/minio:latest

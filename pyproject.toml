@@ -46,4 +46,6 @@ exclude = ["tests/", "notebooks/"]
 asyncio_mode = "auto"
 testpaths = ["packages", "apps"]
 python_files = ["test_*.py", "*_test.py"]
-addopts = "--cov=packages --cov=apps --cov-report=term-missing --cov-report=xml"
+# importlib mode isolates same-named test modules across packages (each package
+# has its own tests/ dir), so the suite collects cleanly from the repo root.
+addopts = "--import-mode=importlib --cov=packages --cov=apps --cov-report=term-missing --cov-report=xml"

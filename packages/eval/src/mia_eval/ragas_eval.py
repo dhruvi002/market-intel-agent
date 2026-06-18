@@ -22,8 +22,9 @@ collecting tests — never drags them in.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -31,6 +32,41 @@ if TYPE_CHECKING:
     from mia_eval.golden import GoldenQA
 
 logger = logging.getLogger(__name__)
+
+
+def _patch_missing_vertexai() -> None:
+    """Shim the dead Vertex import in ``ragas`` so it imports cleanly.
+
+    ``ragas`` (0.4.x) hard-imports ``ChatVertexAI`` from
+    ``langchain_community.chat_models.vertexai`` at module load, but that
+    submodule was removed in ``langchain_community`` >= 0.4 (Vertex moved to the
+    ``langchain-google-vertexai`` package). This project never uses Vertex (the
+    LLM stack is Gemini / Groq / Cerebras), so we register a minimal placeholder
+    module. ``ChatVertexAI`` is only referenced by ragas in ``isinstance`` type
+    checks, which correctly evaluate ``False`` for our ChatOpenAI-based models.
+
+    No-op if the real module is present (e.g. on a future compatible install).
+    """
+    import sys
+    import types
+
+    mod_name = "langchain_community.chat_models.vertexai"
+    if mod_name in sys.modules:
+        return
+    try:
+        __import__(mod_name)
+        return  # real module exists — nothing to patch
+    except ModuleNotFoundError:
+        pass
+
+    stub = types.ModuleType(mod_name)
+
+    class ChatVertexAI:  # placeholder; never instantiated
+        """Stub for the removed langchain_community Vertex chat model."""
+
+    stub.ChatVertexAI = ChatVertexAI
+    sys.modules[mod_name] = stub
+    logger.debug("Patched missing %s with a stub for ragas compatibility", mod_name)
 
 
 @dataclass(slots=True)
@@ -65,7 +101,7 @@ class RagasScores:
 
 
 def build_samples_from_responses(
-    golden: "Sequence[GoldenQA]",
+    golden: Sequence[GoldenQA],
     answers: Sequence[str],
     contexts: Sequence[Sequence[str]],
 ) -> list[RagasSample]:
@@ -90,47 +126,84 @@ def build_samples_from_responses(
     ]
 
 
-def _build_ragas_llm(llm: "BaseChatModel | None"):
+def _build_ragas_llm(llm: BaseChatModel | None):
     """Wrap our free LangChain chat model for RAGAS."""
-    from langchain_core.language_models import BaseChatModel  # noqa: PLC0415
-    from ragas.llms import LangchainLLMWrapper  # noqa: PLC0415
+    _patch_missing_vertexai()
+    from langchain_core.language_models import BaseChatModel
+    from ragas.llms import LangchainLLMWrapper
 
     if llm is None:
-        from mia_agents.llm import get_llm  # noqa: PLC0415
+        from mia_agents.llm import get_llm
 
-        llm = get_llm()  # full free fallback chain
+        llm = get_llm()  # full free fallback chain / LLM_PROVIDER pin
     assert isinstance(llm, BaseChatModel)
-    return LangchainLLMWrapper(llm)
+
+    # Give the judge headroom. RAGAS prompts emit long JSON, and reasoning-style
+    # models (e.g. Cerebras zai-glm-4.7) can hit the default 4096-token cap
+    # mid-output, which RAGAS raises as LLMDidNotFinishException. Bump the
+    # completion budget wherever the model exposes it.
+    for attr in ("max_tokens", "max_completion_tokens"):
+        cur = getattr(llm, attr, None)
+        if isinstance(cur, int) and cur < 8192:
+            try:
+                setattr(llm, attr, 8192)
+            except Exception:
+                pass
+
+    # bypass_n=True → RAGAS issues n separate single-completion requests instead
+    # of one request with n>1. Cerebras's OpenAI-compatible API rejects n>1
+    # ("'n' > 1 is not currently supported"); this routes around it.
+    return LangchainLLMWrapper(llm, bypass_n=True)
 
 
 def _build_ragas_embeddings():
-    """Wrap the local bge embedder for RAGAS (answer-relevancy needs embeddings)."""
-    from langchain_huggingface import HuggingFaceEmbeddings  # noqa: PLC0415
-    from ragas.embeddings import LangchainEmbeddingsWrapper  # noqa: PLC0415
+    """Wrap the project's bge embedder for RAGAS (answer-relevancy needs embeddings).
 
-    from mia_shared.config import get_settings  # noqa: PLC0415
+    Reuses ``mia_retrieval``'s ``Embedder`` (the same BAAI/bge-large-en-v1.5
+    singleton the retriever uses) through a thin ``langchain_core.embeddings``
+    adapter. This keeps the eval's embeddings identical to retrieval's and
+    avoids depending on the ``langchain_huggingface`` integration package.
+    """
+    from langchain_core.embeddings import Embeddings
+    from mia_retrieval.embedder import get_embedder
+    from ragas.embeddings import LangchainEmbeddingsWrapper
 
-    cfg = get_settings()
-    hf = HuggingFaceEmbeddings(model_name=cfg.embedding_model)
-    return LangchainEmbeddingsWrapper(hf)
+    embedder = get_embedder()
+
+    class _BGEEmbeddings(Embeddings):
+        """Adapt mia_retrieval.Embedder to the langchain Embeddings interface."""
+
+        def embed_documents(self, texts: list[str]) -> list[list[float]]:
+            return [vec.tolist() for vec in embedder.embed(list(texts))]
+
+        def embed_query(self, text: str) -> list[float]:
+            return embedder.embed_query(text).tolist()
+
+    return LangchainEmbeddingsWrapper(_BGEEmbeddings())
 
 
 def evaluate_generation(
     samples: Sequence[RagasSample],
     *,
-    llm: "BaseChatModel | None" = None,
+    llm: BaseChatModel | None = None,
     metrics: Sequence[str] | None = None,
+    max_workers: int = 1,
 ) -> RagasScores:
     """Run RAGAS over *samples* and return mean scores.
 
     Parameters
     ----------
-    samples : list of :class:`RagasSample` (use
-              :func:`build_samples_from_responses`)
-    llm     : LangChain chat model judge (defaults to the free fallback chain)
-    metrics : subset of
-              ``{"faithfulness", "answer_relevancy", "context_precision",
-              "context_recall"}``; defaults to all four
+    samples     : list of :class:`RagasSample` (use
+                  :func:`build_samples_from_responses`)
+    llm         : LangChain chat model judge (defaults to the free fallback
+                  chain / ``LLM_PROVIDER`` pin)
+    metrics     : subset of
+                  ``{"faithfulness", "answer_relevancy", "context_precision",
+                  "context_recall"}``; defaults to all four
+    max_workers : RAGAS judge concurrency. Defaults to **1** (serial) because
+                  free-tier inference providers (e.g. Cerebras) share a request
+                  queue and return ``429 queue_exceeded`` under bursty
+                  concurrent load. Raise only on a paid/self-hosted endpoint.
 
     Returns
     -------
@@ -144,14 +217,16 @@ def evaluate_generation(
     if not samples:
         return RagasScores()
 
-    from datasets import Dataset  # noqa: PLC0415
-    from ragas import evaluate  # noqa: PLC0415
-    from ragas.metrics import (  # noqa: PLC0415
+    _patch_missing_vertexai()
+    from datasets import Dataset
+    from ragas import evaluate
+    from ragas.metrics import (
         answer_relevancy,
         context_precision,
         context_recall,
         faithfulness,
     )
+    from ragas.run_config import RunConfig
 
     metric_map = {
         "faithfulness": faithfulness,
@@ -174,9 +249,16 @@ def evaluate_generation(
     ragas_llm = _build_ragas_llm(llm)
     ragas_emb = _build_ragas_embeddings()
 
-    logger.info("Running RAGAS on %d samples, metrics=%s", len(samples), selected)
+    # Serialize judge calls (max_workers=1) with a generous per-call timeout and
+    # retry budget so transient free-tier 429s recover instead of failing the run.
+    run_config = RunConfig(max_workers=max_workers, timeout=300, max_retries=10)
+
+    logger.info(
+        "Running RAGAS on %d samples, metrics=%s, max_workers=%d",
+        len(samples), selected, max_workers,
+    )
     result = evaluate(
-        ds, metrics=chosen, llm=ragas_llm, embeddings=ragas_emb
+        ds, metrics=chosen, llm=ragas_llm, embeddings=ragas_emb, run_config=run_config
     )
 
     df = result.to_pandas()

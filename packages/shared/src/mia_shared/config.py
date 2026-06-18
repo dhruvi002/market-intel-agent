@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr = Field(...)
     groq_api_key: SecretStr = Field(...)
     cerebras_api_key: SecretStr | None = Field(None)
+    llm_provider: str | None = Field(
+        None,
+        description=(
+            "Pin all get_llm() calls to one provider (gemini | groq | cerebras). "
+            "None → full Gemini→Groq→Cerebras fallback chain."
+        ),
+    )
 
     # ── Search ───────────────────────────────────────────────────────────────
     tavily_api_key: SecretStr = Field(...)

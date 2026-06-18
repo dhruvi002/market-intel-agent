@@ -508,8 +508,8 @@ class TestNLICritic:
         state = make_state(evidence=[ev1, ev2], citations=[cit1, cit2], draft="Draft.")
         out = self._run_critic(state, nli_scores=[0.8, 0.4])
         scores = {c.nli_score for c in out["citations"]}
-        assert pytest.approx(0.8, abs=1e-5) in scores
-        assert pytest.approx(0.4, abs=1e-5) in scores
+        assert any(s == pytest.approx(0.8, abs=1e-5) for s in scores)
+        assert any(s == pytest.approx(0.4, abs=1e-5) for s in scores)
 
     # ── Failing claims ────────────────────────────────────────────────────────
 
@@ -604,7 +604,7 @@ class TestWebSearchNode:
         mock_client = AsyncMock()
         mock_client.search = AsyncMock(return_value={"results": results})
 
-        with patch("mia_agents.nodes.web_search.AsyncTavilyClient", return_value=mock_client):
+        with patch("tavily.AsyncTavilyClient", return_value=mock_client):
             return asyncio.run(web_search_node(state))
 
     def _make_result(self, url="https://example.com/1", content="Some article.", title="Title") -> dict:
@@ -668,7 +668,7 @@ class TestWebSearchNode:
         state = make_state(evidence=[make_evidence()])
         mock_client = AsyncMock()
         mock_client.search = AsyncMock(side_effect=RuntimeError("API down"))
-        with patch("mia_agents.nodes.web_search.AsyncTavilyClient", return_value=mock_client):
+        with patch("tavily.AsyncTavilyClient", return_value=mock_client):
             out = asyncio.run(web_search_node(state))
         assert len(out["evidence"]) == 1  # unchanged
 

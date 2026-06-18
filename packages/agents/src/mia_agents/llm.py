@@ -31,14 +31,17 @@ import logging
 from enum import Enum
 
 from langchain_core.language_models import BaseChatModel
-
 from mia_shared.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 _GEMINI_MODEL = "gemini-2.0-flash"
 _GROQ_MODEL = "llama-3.3-70b-versatile"
-_CEREBRAS_MODEL = "llama3.3-70b"
+# Cerebras free-tier model lineup (verify via GET /v1/models for your account).
+# As of 2026-06, this key has access to: gpt-oss-120b, zai-glm-4.7.
+# zai-glm-4.7 chosen over gpt-oss-120b: far fewer tokens/call (no long reasoning
+# traces), so lower latency and less TPM pressure under concurrent load.
+_CEREBRAS_MODEL = "zai-glm-4.7"
 _CEREBRAS_BASE_URL = "https://api.cerebras.ai/v1"
 
 
@@ -69,6 +72,13 @@ def get_llm(
     """
     settings = get_settings()
 
+    # Explicit arg wins; otherwise honor the LLM_PROVIDER env pin if set.
+    # Guard on str so a mocked/non-string settings attribute is ignored.
+    if provider is None:
+        env_provider = getattr(settings, "llm_provider", None)
+        if isinstance(env_provider, str) and env_provider:
+            provider = env_provider
+
     if provider is not None:
         p = LLMProvider(provider)
         logger.debug("LLM: pinned to %s", p.value)
@@ -79,7 +89,7 @@ def get_llm(
     fallbacks: list[BaseChatModel] = [
         _build_single(LLMProvider.GROQ, settings, temperature, max_tokens)
     ]
-    if settings.cerebras_api_key is not None:
+    if settings.cerebras_api_key is not None and settings.cerebras_api_key.get_secret_value():
         fallbacks.append(
             _build_single(LLMProvider.CEREBRAS, settings, temperature, max_tokens)
         )
@@ -102,7 +112,7 @@ def _build_single(
 ) -> BaseChatModel:
     """Instantiate a single LangChain model for *provider*."""
     if provider == LLMProvider.GEMINI:
-        from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: PLC0415
+        from langchain_google_genai import ChatGoogleGenerativeAI
 
         return ChatGoogleGenerativeAI(
             model=_GEMINI_MODEL,
@@ -112,7 +122,7 @@ def _build_single(
         )
 
     if provider == LLMProvider.GROQ:
-        from langchain_groq import ChatGroq  # noqa: PLC0415
+        from langchain_groq import ChatGroq
 
         return ChatGroq(
             model=_GROQ_MODEL,
@@ -122,18 +132,22 @@ def _build_single(
         )
 
     if provider == LLMProvider.CEREBRAS:
-        from langchain_openai import ChatOpenAI  # noqa: PLC0415
+        from langchain_openai import ChatOpenAI
 
-        if settings.cerebras_api_key is None:
+        if not settings.cerebras_api_key or not settings.cerebras_api_key.get_secret_value():
             raise ValueError(
                 "CEREBRAS_API_KEY is not set — cannot build Cerebras provider"
             )
         return ChatOpenAI(
             model=_CEREBRAS_MODEL,
-            openai_api_key=settings.cerebras_api_key.get_secret_value(),
-            openai_api_base=_CEREBRAS_BASE_URL,
+            api_key=settings.cerebras_api_key.get_secret_value(),
+            base_url=_CEREBRAS_BASE_URL,
             temperature=temperature,
             max_tokens=max_tokens,
+            # Cerebras free tier shares a request queue and can return transient
+            # 429 (queue_exceeded / token_quota). Retry with exponential backoff
+            # so a throttled call recovers instead of failing the whole session.
+            max_retries=6,
         )
 
     raise ValueError(f"Unknown LLM provider: {provider!r}")

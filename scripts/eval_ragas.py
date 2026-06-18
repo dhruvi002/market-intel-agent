@@ -29,6 +29,12 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--golden", type=Path, default=None)
     p.add_argument("--bm25-path", type=Path, default=Path("data/bm25_index.pkl"))
     p.add_argument("--provider", choices=["gemini", "groq", "cerebras"], default=None)
+    p.add_argument(
+        "--max-workers",
+        type=int,
+        default=1,
+        help="RAGAS judge concurrency (default 1 — serial, safe for free-tier shared queues)",
+    )
     return p.parse_args()
 
 
@@ -64,7 +70,7 @@ async def main() -> None:
         print(f"  ✓ {qa.id}: {len(resp.evidence)} contexts")
 
     samples = build_samples_from_responses(golden, answers, contexts)
-    scores = evaluate_generation(samples, llm=llm)
+    scores = evaluate_generation(samples, llm=llm, max_workers=args.max_workers)
 
     sep = "─" * 60
     print(f"\n{sep}\nRAGAS SCORES — mode={args.mode} rerank={args.rerank} n={scores.n}\n{sep}")
