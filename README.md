@@ -1,7 +1,5 @@
 # Autonomous Enterprise Market Intelligence Agent
 
-[![CI](https://github.com/dhruvi002/market-intel-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/dhruvi002/market-intel-agent/actions/workflows/ci.yml)
-
 A production-grade multi-agent system that answers natural-language questions
 about public companies by autonomously gathering evidence from SEC filings,
 financial databases, and open-web sources — streaming every agent's reasoning
